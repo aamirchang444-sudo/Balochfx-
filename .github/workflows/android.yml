@@ -40,7 +40,7 @@ jobs:
 
       - name: Build APK
         run: |
-          yes | buildozer android debug 2>&1 | tee build.log
+          | buildozer android debug 2>&1 | tee build.log
 
       - name: Show build log on failure
         if: failure()
