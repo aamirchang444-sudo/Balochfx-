@@ -40,13 +40,13 @@ jobs:
 
       - name: Build APK
         run: |
+          set -o pipefail
           buildozer android debug 2>&1 | tee build.log
 
-      - name: Show build log on failure
-        if: failure()
+      - name: Show APK files
         run: |
-          echo "===== LAST 200 LINES OF BUILD LOG ====="
-          tail -n 200 build.log
+          echo "===== APK FILES ====="
+          find . -type f -name "*.apk" -print
 
       - name: Upload APK
         if: success()
@@ -54,3 +54,5 @@ jobs:
         with:
           name: BalochFX-APK
           path: bin/*.apk
+          if-no-files-found: error
+
