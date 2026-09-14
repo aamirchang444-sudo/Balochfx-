@@ -1,71 +1,53 @@
 name: BalochFX Android APK
 
 on:
-  workflow_dispatch:
   push:
     branches:
       - main
+  workflow_dispatch:
 
 jobs:
   build:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up Python 3.11
+      - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
 
-      - name: Set up Java 17
+      - name: Setup Java
         uses: actions/setup-java@v4
         with:
-          distribution: "temurin"
+          distribution: temurin
           java-version: "17"
-
-      - name: Check Python and Java
-        run: |
-          python --version
-          python -m pip --version
-          java -version
-          echo "JAVA_HOME=$JAVA_HOME"
 
       - name: Install system dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y \
-            git zip unzip \
+            git zip unzip openjdk-17-jdk \
             autoconf automake libtool pkg-config \
-            zlib1g-dev libncurses5-dev libncursesw5-dev \
-            cmake libffi-dev libssl-dev
+            zlib1g-dev libncurses5-dev libffi-dev \
+            libssl-dev cmake
 
-      - name: Install Python dependencies
+      - name: Install Buildozer
         run: |
           python -m pip install --upgrade pip
-          python -m pip install "buildozer==1.5.0"
-          python -m pip install "cython==0.29.37"
-
-      - name: Accept Android SDK licenses
-        run: |
-          yes | sdkmanager --licenses || true
+          python -m pip install buildozer
+          python -m pip install "cython<3.4"
 
       - name: Build APK
+        env:
+          PIP_DISABLE_PIP_VERSION_CHECK: "1"
         run: |
-          export JAVA_HOME="$JAVA_HOME"
-          export PATH="$JAVA_HOME/bin:$PATH"
-          python -m buildozer android debug 2>&1 | tee build.log
-
-      - name: Show APK files
-        run: |
-          echo "===== APK FILES ====="
-          find . -type f -name "*.apk" -print
+          yes | buildozer android debug
 
       - name: Upload APK
-        if: success()
         uses: actions/upload-artifact@v4
         with:
           name: BalochFX-APK
           path: bin/*.apk
-          if-no-files-found: error
