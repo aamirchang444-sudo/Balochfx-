@@ -25,8 +25,10 @@ jobs:
           distribution: "temurin"
           java-version: "17"
 
-      - name: Check Java version
+      - name: Force Java 17
         run: |
+          echo "JAVA_HOME=$JAVA_HOME" >> "$GITHUB_ENV"
+          echo "PATH=$JAVA_HOME/bin:$PATH" >> "$GITHUB_ENV"
           java -version
           echo "JAVA_HOME=$JAVA_HOME"
 
@@ -34,7 +36,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y \
-            git zip unzip openjdk-17-jdk \
+            git zip unzip \
             autoconf automake libtool pkg-config \
             zlib1g-dev libncurses5-dev libncursesw5-dev \
             cmake libffi-dev libssl-dev
@@ -52,6 +54,9 @@ jobs:
       - name: Build APK
         run: |
           set -o pipefail
+          export JAVA_HOME="${JAVA_HOME}"
+          export PATH="${JAVA_HOME}/bin:${PATH}"
+          java -version
           buildozer android debug 2>&1 | tee build.log
 
       - name: Show APK files
