@@ -14,7 +14,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up Python
+      - name: Set up Python 3.11
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
@@ -25,10 +25,10 @@ jobs:
           distribution: "temurin"
           java-version: "17"
 
-      - name: Force Java 17
+      - name: Check Python and Java
         run: |
-          echo "JAVA_HOME=$JAVA_HOME" >> "$GITHUB_ENV"
-          echo "PATH=$JAVA_HOME/bin:$PATH" >> "$GITHUB_ENV"
+          python --version
+          python -m pip --version
           java -version
           echo "JAVA_HOME=$JAVA_HOME"
 
@@ -44,8 +44,8 @@ jobs:
       - name: Install Python dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install buildozer
-          pip install cython==0.29.37
+          python -m pip install "buildozer==1.5.0"
+          python -m pip install "cython==0.29.37"
 
       - name: Accept Android SDK licenses
         run: |
@@ -53,11 +53,9 @@ jobs:
 
       - name: Build APK
         run: |
-          set -o pipefail
-          export JAVA_HOME="${JAVA_HOME}"
-          export PATH="${JAVA_HOME}/bin:${PATH}"
-          java -version
-          buildozer android debug 2>&1 | tee build.log
+          export JAVA_HOME="$JAVA_HOME"
+          export PATH="$JAVA_HOME/bin:$PATH"
+          python -m buildozer android debug 2>&1 | tee build.log
 
       - name: Show APK files
         run: |
