@@ -6,9 +6,6 @@ on:
       - main
   workflow_dispatch:
 
-env:
-  PYTHONFORANDROID_PREREQUISITES_INSTALL_INTERACTIVE: "0"
-
 jobs:
   build:
     runs-on: ubuntu-22.04
@@ -28,23 +25,18 @@ jobs:
           distribution: temurin
           java-version: "17"
 
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          packages: "platform-tools platforms;android-35 build-tools;35.0.0"
+
       - name: Install system dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y \
-            git \
-            zip \
-            unzip \
-            openjdk-17-jdk \
-            autoconf \
-            automake \
-            libtool \
-            pkg-config \
-            zlib1g-dev \
-            libncurses5-dev \
-            libffi-dev \
-            libssl-dev \
-            cmake
+            git zip unzip autoconf automake libtool \
+            pkg-config zlib1g-dev libncurses5-dev \
+            libffi-dev libssl-dev cmake
 
       - name: Install Buildozer
         run: |
@@ -59,10 +51,17 @@ jobs:
           test -f main.py
           test -f buildozer.spec
 
-      - name: Accept Android SDK licenses
+      - name: Prepare Buildozer SDK
         run: |
-          mkdir -p "$HOME/.buildozer/android/platform/android-sdk/licenses"
-          yes | buildozer android p4a -- --help || true
+          mkdir -p "$HOME/.buildozer/android/platform/android-sdk/tools/bin"
+          ln -sf "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" \
+            "$HOME/.buildozer/android/platform/android-sdk/tools/bin/sdkmanager"
+          ln -sf "$ANDROID_HOME/cmdline-tools/latest/bin/avdmanager" \
+            "$HOME/.buildozer/android/platform/android-sdk/tools/bin/avdmanager"
+          ln -sf "$ANDROID_HOME/platform-tools/adb" \
+            "$HOME/.buildozer/android/platform/android-sdk/platform-tools"
+          echo "SDK manager:"
+          "$HOME/.buildozer/android/platform/android-sdk/tools/bin/sdkmanager" --version
 
       - name: Build APK
         env:
@@ -78,5 +77,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: BALOCHFX-APK
-          path: |
-            bin/*.apk
+          path: bin/*.apk
