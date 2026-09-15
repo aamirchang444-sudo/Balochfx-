@@ -1,4 +1,4 @@
-name: BalochFX Android APK
+name: BALOCHFX Android APK
 
 on:
   push:
@@ -8,26 +8,21 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-22.04
 
     steps:
-      - name: Checkout
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up Python 3.11
+      - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
 
-      - name: Set up Java 17
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: "17"
-
       - name: Install system dependencies
         run: |
           sudo apt-get update
+
           sudo apt-get install -y \
             git \
             zip \
@@ -36,29 +31,70 @@ jobs:
             autoconf \
             automake \
             libtool \
+            libtool-bin \
+            m4 \
             pkg-config \
             zlib1g-dev \
             libncurses5-dev \
             libffi-dev \
             libssl-dev \
-            cmake
+            cmake \
+            gettext \
+            build-essential
 
-      - name: Install Buildozer
+          libtoolize --version
+          autoconf --version
+          automake --version
+
+      - name: Configure Java 17
+        run: |
+          echo "JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64" >> "$GITHUB_ENV"
+          echo "PATH=/usr/lib/jvm/java-17-openjdk-amd64/bin:$PATH" >> "$GITHUB_ENV"
+
+      - name: Verify Java
+        run: |
+          java -version
+          javac -version
+
+      - name: Upgrade pip
         run: |
           python -m pip install --upgrade pip
-          python -m pip install "buildozer==1.5.0"
-          python -m pip install "cython==0.29.37"
+          python -m pip --version
 
-      - name: Clean Buildozer cache
+      - name: Install Python build tools
         run: |
-          rm -rf .buildozer
+          python -m pip install "cython==0.29.37"
+          python -m pip install buildozer
+
+      - name: Prepare Autotools environment
+        run: |
+          export ACLOCAL_PATH="/usr/share/aclocal"
+          echo "ACLOCAL_PATH=$ACLOCAL_PATH" >> "$GITHUB_ENV"
+
+          libtoolize --force --copy
+          aclocal
+          autoconf --version
+          automake --version
+          libtool --version
+
+      - name: Accept Android SDK licenses
+        run: |
+          mkdir -p "$HOME/.buildozer/android/platform/android-sdk/licenses"
+
+          yes | buildozer android debug || true
 
       - name: Build APK
         run: |
-          buildozer -v android debug
+          yes | buildozer android debug
+
+      - name: Find APK
+        run: |
+          echo "APK files:"
+          find bin -type f -name "*.apk" -print
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: BalochFX-APK
           path: bin/*.apk
+          if-no-files-found: error
