@@ -1,0 +1,976 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🚀 BALOCHFX - BTC Candle Analyzer</title>
+
+<style>
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    font-family: Arial, sans-serif;
+    background: #0b1020;
+    color: #ffffff;
+}
+
+.container {
+    max-width: 700px;
+    margin: auto;
+    padding: 18px;
+}
+
+.header {
+    text-align: center;
+    margin-bottom: 18px;
+}
+
+.logo {
+    font-size: 30px;
+    font-weight: bold;
+}
+
+.subtitle {
+    color: #aeb7cc;
+    margin-top: 6px;
+}
+
+.card {
+    background: #151c31;
+    border-radius: 18px;
+    padding: 18px;
+    margin-bottom: 15px;
+    box-shadow: 0 8px 25px rgba(0,0,0,0.25);
+}
+
+.price {
+    font-size: 34px;
+    font-weight: bold;
+    text-align: center;
+    margin: 8px 0;
+}
+
+.label {
+    color: #9faac2;
+    font-size: 13px;
+    margin-bottom: 5px;
+}
+
+.signal {
+    text-align: center;
+    font-size: 38px;
+    font-weight: bold;
+    padding: 12px;
+    border-radius: 14px;
+    margin: 10px 0;
+}
+
+.up {
+    background: rgba(40,180,100,0.18);
+}
+
+.down {
+    background: rgba(220,70,70,0.18);
+}
+
+.neutral {
+    background: rgba(220,180,50,0.18);
+}
+
+.grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+}
+
+.stat {
+    background: #0f1527;
+    padding: 12px;
+    border-radius: 12px;
+}
+
+.stat-value {
+    font-size: 18px;
+    font-weight: bold;
+}
+
+button {
+    width: 100%;
+    border: none;
+    border-radius: 14px;
+    padding: 16px;
+    font-size: 18px;
+    font-weight: bold;
+    background: #2563eb;
+    color: white;
+    cursor: pointer;
+    margin-top: 10px;
+}
+
+button:active {
+    transform: scale(0.98);
+}
+
+.status {
+    text-align: center;
+    color: #aeb7cc;
+    margin-top: 10px;
+}
+
+.reason {
+    padding: 9px 0;
+    border-bottom: 1px solid #293149;
+    color: #dce3f4;
+}
+
+.candle {
+    padding: 8px;
+    border-bottom: 1px solid #293149;
+    font-size: 13px;
+}
+
+.bull {
+    color: #4ade80;
+}
+
+.bear {
+    color: #f87171;
+}
+
+.doji {
+    color: #facc15;
+}
+
+.warning {
+    text-align: center;
+    color: #9faac2;
+    font-size: 12px;
+    line-height: 1.5;
+}
+
+.small {
+    color: #8e99b3;
+    font-size: 12px;
+}
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+    <div class="header">
+        <div class="logo">🚀 BALOCHFX</div>
+        <div class="subtitle">Real 1-Minute OHLC Candle Analyzer</div>
+    </div>
+
+    <div class="card">
+        <div class="label">BTC / USD</div>
+        <div id="price" class="price">$--</div>
+        <div id="update" class="small" style="text-align:center;">
+            Waiting for market data...
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="label">NEXT 1-MINUTE SIGNAL</div>
+
+        <div id="signal" class="signal neutral">
+            🟡 NEUTRAL
+        </div>
+
+        <div class="grid">
+
+            <div class="stat">
+                <div class="label">Strength</div>
+                <div id="strength" class="stat-value">--</div>
+            </div>
+
+            <div class="stat">
+                <div class="label">Last Candle</div>
+                <div id="candleType" class="stat-value">--</div>
+            </div>
+
+            <div class="stat">
+                <div class="label">Body</div>
+                <div id="body" class="stat-value">--</div>
+            </div>
+
+            <div class="stat">
+                <div class="label">Trend</div>
+                <div id="trend" class="stat-value">--</div>
+            </div>
+
+            <div class="stat">
+                <div class="label">Momentum</div>
+                <div id="momentum" class="stat-value">--</div>
+            </div>
+
+            <div class="stat">
+                <div class="label">Volume</div>
+                <div id="volume" class="stat-value">--</div>
+            </div>
+
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="label">WHY THIS SIGNAL?</div>
+        <div id="reasons">
+            <div class="reason">Waiting for candle analysis...</div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="label">LAST 5 COMPLETED CANDLES</div>
+        <div id="candles">
+            Waiting...
+        </div>
+    </div>
+
+    <div class="card">
+        <button id="signalBtn" onclick="loadAndAnalyze()">
+            GET SIGNAL
+        </button>
+
+        <div id="status" class="status">
+            Ready
+        </div>
+    </div>
+
+    <div class="card warning">
+        Educational signal only.<br>
+        This analyzer studies completed market candles using OHLC data.
+        It does not guarantee the direction of any future candle.
+    </div>
+
+</div>
+
+<script>
+
+const API =
+"https://api.exchange.coinbase.com/products/BTC-USD/candles?granularity=60";
+
+let busy = false;
+
+
+/* -----------------------------
+   FORMAT PRICE
+----------------------------- */
+
+function formatPrice(value) {
+    return "$" + Number(value).toLocaleString("en-US", {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+    });
+}
+
+
+/* -----------------------------
+   CANDLE TYPE
+----------------------------- */
+
+function getCandleType(candle) {
+
+    const open = candle.open;
+    const close = candle.close;
+    const high = candle.high;
+    const low = candle.low;
+
+    const range = high - low;
+    const body = Math.abs(close - open);
+
+    if (range === 0) {
+        return "DOJI";
+    }
+
+    if (body / range < 0.10) {
+        return "DOJI";
+    }
+
+    if (close > open) {
+        return "BULLISH";
+    }
+
+    if (close < open) {
+        return "BEARISH";
+    }
+
+    return "DOJI";
+}
+
+
+/* -----------------------------
+   FETCH CANDLES
+----------------------------- */
+
+async function getCandles() {
+
+    const response = await fetch(API, {
+        cache: "no-store"
+    });
+
+    if (!response.ok) {
+        throw new Error(
+            "Coinbase API error: HTTP " + response.status
+        );
+    }
+
+    const data = await response.json();
+
+    if (!Array.isArray(data)) {
+        throw new Error("Invalid candle data received.");
+    }
+
+    /*
+       Coinbase format:
+
+       [time, low, high, open, close, volume]
+    */
+
+    let candles = data.map(row => {
+
+        return {
+            time: Number(row[0]),
+            low: Number(row[1]),
+            high: Number(row[2]),
+            open: Number(row[3]),
+            close: Number(row[4]),
+            volume: Number(row[5])
+        };
+
+    });
+
+    candles = candles.filter(c =>
+        Number.isFinite(c.time) &&
+        Number.isFinite(c.open) &&
+        Number.isFinite(c.high) &&
+        Number.isFinite(c.low) &&
+        Number.isFinite(c.close) &&
+        Number.isFinite(c.volume)
+    );
+
+    /*
+       API normally returns newest first.
+       Convert to oldest -> newest.
+    */
+
+    candles.sort((a, b) => a.time - b.time);
+
+    /*
+       Remove the currently forming candle.
+       Only completed 1-minute candles are analyzed.
+    */
+
+    const currentMinute =
+        Math.floor(Date.now() / 1000 / 60) * 60;
+
+    candles = candles.filter(c =>
+        c.time < currentMinute
+    );
+
+    return candles;
+}
+
+
+/* -----------------------------
+   ANALYZE
+----------------------------- */
+
+function analyze(candles) {
+
+    if (candles.length < 10) {
+        throw new Error(
+            "Not enough completed candles."
+        );
+    }
+
+    const last = candles[candles.length - 1];
+
+    const previous5 =
+        candles.slice(candles.length - 10, candles.length - 5);
+
+    const recent5 =
+        candles.slice(candles.length - 5);
+
+    const recent3 =
+        candles.slice(candles.length - 3);
+
+
+    /* LAST CANDLE */
+
+    const range = last.high - last.low;
+
+    const body =
+        Math.abs(last.close - last.open);
+
+    const bodyPct =
+        range > 0 ? (body / range) * 100 : 0;
+
+    const upperWick =
+        last.high - Math.max(last.open, last.close);
+
+    const lowerWick =
+        Math.min(last.open, last.close) - last.low;
+
+
+    /* TREND */
+
+    const previousAvg =
+        previous5.reduce(
+            (sum, c) => sum + c.close, 0
+        ) / previous5.length;
+
+    const recentAvg =
+        recent5.reduce(
+            (sum, c) => sum + c.close, 0
+        ) / recent5.length;
+
+    const trendChange =
+        ((recentAvg - previousAvg) /
+        previousAvg) * 100;
+
+
+    let trend = "SIDEWAYS";
+
+    if (trendChange > 0.015) {
+        trend = "UP";
+    }
+
+    if (trendChange < -0.015) {
+        trend = "DOWN";
+    }
+
+
+    /* MOMENTUM */
+
+    const momentumStart =
+        candles[candles.length - 4].close;
+
+    const momentumChange =
+        ((last.close - momentumStart) /
+        momentumStart) * 100;
+
+    let momentum = "NEUTRAL";
+
+    if (momentumChange > 0.015) {
+        momentum = "UP";
+    }
+
+    if (momentumChange < -0.015) {
+        momentum = "DOWN";
+    }
+
+
+    /* CANDLE COUNT */
+
+    let bullish = 0;
+    let bearish = 0;
+
+    recent3.forEach(c => {
+
+        if (c.close > c.open) {
+            bullish++;
+        }
+
+        if (c.close < c.open) {
+            bearish++;
+        }
+
+    });
+
+
+    /* VOLUME */
+
+    const volumeBase =
+        candles
+        .slice(candles.length - 11, candles.length - 1)
+        .reduce(
+            (sum, c) => sum + c.volume, 0
+        ) / 10;
+
+    const volumeRatio =
+        volumeBase > 0
+        ? last.volume / volumeBase
+        : 1;
+
+
+    /* SCORE */
+
+    let score = 0;
+
+    const reasons = [];
+
+
+    /* Last candle */
+
+    if (last.close > last.open) {
+
+        score += 2;
+
+        reasons.push(
+            "Latest completed candle is bullish."
+        );
+
+    } else if (last.close < last.open) {
+
+        score -= 2;
+
+        reasons.push(
+            "Latest completed candle is bearish."
+        );
+
+    } else {
+
+        reasons.push(
+            "Latest completed candle is neutral."
+        );
+    }
+
+
+    /* 3 candle direction */
+
+    if (bullish >= 2) {
+
+        score += 2;
+
+        reasons.push(
+            bullish + " of the last 3 candles are bullish."
+        );
+
+    } else if (bearish >= 2) {
+
+        score -= 2;
+
+        reasons.push(
+            bearish + " of the last 3 candles are bearish."
+        );
+
+    } else {
+
+        reasons.push(
+            "Recent candle directions are mixed."
+        );
+    }
+
+
+    /* Trend */
+
+    if (trend === "UP") {
+
+        score += 2;
+
+        reasons.push(
+            "Short trend is moving upward."
+        );
+
+    } else if (trend === "DOWN") {
+
+        score -= 2;
+
+        reasons.push(
+            "Short trend is moving downward."
+        );
+
+    } else {
+
+        reasons.push(
+            "Short trend is relatively sideways."
+        );
+    }
+
+
+    /* Momentum */
+
+    if (momentum === "UP") {
+
+        score += 1;
+
+        reasons.push(
+            "Recent momentum is positive."
+        );
+
+    } else if (momentum === "DOWN") {
+
+        score -= 1;
+
+        reasons.push(
+            "Recent momentum is negative."
+        );
+    }
+
+
+    /* Body */
+
+    if (bodyPct >= 55) {
+
+        if (last.close > last.open) {
+
+            score += 1;
+
+            reasons.push(
+                "Bullish candle has a relatively strong body."
+            );
+
+        } else if (last.close < last.open) {
+
+            score -= 1;
+
+            reasons.push(
+                "Bearish candle has a relatively strong body."
+            );
+        }
+
+    } else {
+
+        reasons.push(
+            "Latest candle body is relatively small."
+        );
+    }
+
+
+    /* Wick rejection */
+
+    if (
+        lowerWick > upperWick * 1.5 &&
+        last.close >= last.open
+    ) {
+
+        score += 1;
+
+        reasons.push(
+            "Lower wick is larger, showing buying rejection."
+        );
+    }
+
+    if (
+        upperWick > lowerWick * 1.5 &&
+        last.close <= last.open
+    ) {
+
+        score -= 1;
+
+        reasons.push(
+            "Upper wick is larger, showing selling rejection."
+        );
+    }
+
+
+    /* Volume confirmation */
+
+    if (volumeRatio >= 1.20) {
+
+        if (last.close > last.open) {
+
+            score += 1;
+
+            reasons.push(
+                "Volume is above recent average and supports the bullish candle."
+            );
+
+        } else if (last.close < last.open) {
+
+            score -= 1;
+
+            reasons.push(
+                "Volume is above recent average and supports the bearish candle."
+            );
+
+        }
+
+    } else {
+
+        reasons.push(
+            "Volume is not significantly above its recent average."
+        );
+    }
+
+
+    /* FINAL SIGNAL */
+
+    let signal = "NEUTRAL";
+    let strength = "WEAK";
+
+    if (score >= 4) {
+        signal = "UP";
+    }
+
+    if (score <= -4) {
+        signal = "DOWN";
+    }
+
+
+    const absScore = Math.abs(score);
+
+    if (absScore >= 7) {
+        strength = "STRONG";
+    } else if (absScore >= 4) {
+        strength = "MEDIUM";
+    }
+
+
+    return {
+        last,
+        range,
+        bodyPct,
+        upperWick,
+        lowerWick,
+        trend,
+        trendChange,
+        momentum,
+        momentumChange,
+        volumeRatio,
+        signal,
+        strength,
+        score,
+        reasons
+    };
+}
+
+
+/* -----------------------------
+   SHOW RESULT
+----------------------------- */
+
+function showResult(candles, result) {
+
+    document.getElementById("price").textContent =
+        formatPrice(result.last.close);
+
+
+    const signalBox =
+        document.getElementById("signal");
+
+    signalBox.className = "signal";
+
+
+    if (result.signal === "UP") {
+
+        signalBox.textContent = "🟢 UP";
+        signalBox.classList.add("up");
+
+    } else if (result.signal === "DOWN") {
+
+        signalBox.textContent = "🔴 DOWN";
+        signalBox.classList.add("down");
+
+    } else {
+
+        signalBox.textContent = "🟡 NEUTRAL";
+        signalBox.classList.add("neutral");
+    }
+
+
+    document.getElementById("strength").textContent =
+        result.strength;
+
+
+    const candleType =
+        document.getElementById("candleType");
+
+    candleType.textContent =
+        getCandleType(result.last);
+
+    candleType.className = "stat-value";
+
+
+    if (getCandleType(result.last) === "BULLISH") {
+        candleType.classList.add("bull");
+    }
+
+    if (getCandleType(result.last) === "BEARISH") {
+        candleType.classList.add("bear");
+    }
+
+    if (getCandleType(result.last) === "DOJI") {
+        candleType.classList.add("doji");
+    }
+
+
+    document.getElementById("body").textContent =
+        result.bodyPct.toFixed(1) + "%";
+
+
+    document.getElementById("trend").textContent =
+        result.trend +
+        " (" +
+        result.trendChange.toFixed(3) +
+        "%)";
+
+
+    document.getElementById("momentum").textContent =
+        result.momentum +
+        " (" +
+        result.momentumChange.toFixed(3) +
+        "%)";
+
+
+    document.getElementById("volume").textContent =
+        result.volumeRatio.toFixed(2) +
+        "x avg";
+
+
+    /* REASONS */
+
+    const reasonsBox =
+        document.getElementById("reasons");
+
+    reasonsBox.innerHTML = "";
+
+    result.reasons.forEach(reason => {
+
+        const div =
+            document.createElement("div");
+
+        div.className = "reason";
+
+        div.textContent = "• " + reason;
+
+        reasonsBox.appendChild(div);
+    });
+
+
+    /* LAST 5 CANDLES */
+
+    const candleBox =
+        document.getElementById("candles");
+
+    candleBox.innerHTML = "";
+
+    candles.slice(-5).reverse().forEach(c => {
+
+        const type = getCandleType(c);
+
+        const date =
+            new Date(c.time * 1000);
+
+        const time =
+            date.toLocaleTimeString([], {
+                hour: "2-digit",
+                minute: "2-digit"
+            });
+
+        const div =
+            document.createElement("div");
+
+        div.className = "candle";
+
+        let cls = "doji";
+
+        if (type === "BULLISH") {
+            cls = "bull";
+        }
+
+        if (type === "BEARISH") {
+            cls = "bear";
+        }
+
+        div.innerHTML =
+            time +
+            " | O " +
+            c.open.toFixed(2) +
+            " | H " +
+            c.high.toFixed(2) +
+            " | L " +
+            c.low.toFixed(2) +
+            " | C " +
+            c.close.toFixed(2) +
+            ' | <span class="' +
+            cls +
+            '">' +
+            type +
+            "</span>";
+
+        candleBox.appendChild(div);
+    });
+
+
+    document.getElementById("update").textContent =
+        "Signal based on the latest completed 1-minute candle";
+
+
+    document.getElementById("status").textContent =
+        "Analysis complete • Score: " +
+        result.score +
+        " • " +
+        candles.length +
+        " completed candles";
+}
+
+
+/* -----------------------------
+   MAIN FUNCTION
+----------------------------- */
+
+async function loadAndAnalyze() {
+
+    if (busy) {
+        return;
+    }
+
+    busy = true;
+
+    const button =
+        document.getElementById("signalBtn");
+
+    button.disabled = true;
+    button.textContent = "ANALYZING...";
+
+    document.getElementById("status").textContent =
+        "Loading real 1-minute OHLC candles...";
+
+
+    try {
+
+        const candles =
+            await getCandles();
+
+        const result =
+            analyze(candles);
+
+        showResult(candles, result);
+
+    } catch (error) {
+
+        console.error(error);
+
+        document.getElementById("status").textContent =
+            "❌ " + error.message;
+
+        document.getElementById("update").textContent =
+            "Unable to load market candles.";
+
+    } finally {
+
+        busy = false;
+
+        button.disabled = false;
+        button.textContent = "GET SIGNAL";
+    }
+}
+
+
+/* -----------------------------
+   START
+----------------------------- */
+
+loadAndAnalyze();
+
+
+/*
+   Refresh automatically every 60 seconds.
+*/
+
+setInterval(() => {
+
+    loadAndAnalyze();
+
+}, 60000);
+
+</script>
+
+</body>
+</html>

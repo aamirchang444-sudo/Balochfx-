@@ -1,0 +1,750 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>BALOCHFX Candle Analyzer</title>
+
+<style>
+    * {
+        box-sizing: border-box;
+    }
+
+    body {
+        margin: 0;
+        min-height: 100vh;
+        font-family: Arial, sans-serif;
+        background: #0b1020;
+        color: white;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        padding: 20px;
+    }
+
+    .app {
+        width: 100%;
+        max-width: 430px;
+        background: #121a2d;
+        border-radius: 24px;
+        padding: 22px;
+        box-shadow: 0 15px 45px rgba(0,0,0,.35);
+    }
+
+    .logo {
+        text-align: center;
+        font-size: 30px;
+        font-weight: 800;
+        margin-bottom: 4px;
+    }
+
+    .subtitle {
+        text-align: center;
+        color: #9ca8c7;
+        font-size: 14px;
+        margin-bottom: 22px;
+    }
+
+    .pair {
+        text-align: center;
+        font-size: 21px;
+        font-weight: bold;
+    }
+
+    .price {
+        text-align: center;
+        font-size: 28px;
+        font-weight: bold;
+        margin: 8px 0 20px;
+    }
+
+    .card {
+        background: #19233b;
+        border-radius: 18px;
+        padding: 18px;
+        margin-bottom: 15px;
+    }
+
+    .label {
+        color: #9ca8c7;
+        font-size: 13px;
+        margin-bottom: 7px;
+    }
+
+    .signal {
+        text-align: center;
+        font-size: 40px;
+        font-weight: 800;
+        padding: 8px;
+    }
+
+    .up {
+        color: #35e08a;
+    }
+
+    .down {
+        color: #ff5d6c;
+    }
+
+    .neutral {
+        color: #ffd45c;
+    }
+
+    .strength {
+        text-align: center;
+        font-size: 17px;
+        font-weight: bold;
+        margin-bottom: 5px;
+    }
+
+    .meter {
+        width: 100%;
+        height: 9px;
+        background: #2a3550;
+        border-radius: 20px;
+        overflow: hidden;
+    }
+
+    .meterFill {
+        height: 100%;
+        width: 0%;
+        background: #ffffff;
+        transition: width .4s ease;
+    }
+
+    .row {
+        display: flex;
+        justify-content: space-between;
+        padding: 7px 0;
+        border-bottom: 1px solid #29344f;
+        font-size: 14px;
+    }
+
+    .row:last-child {
+        border-bottom: none;
+    }
+
+    .value {
+        font-weight: bold;
+    }
+
+    #reasons {
+        margin: 0;
+        padding-left: 20px;
+        color: #dce3f5;
+        line-height: 1.8;
+        font-size: 14px;
+    }
+
+    button {
+        width: 100%;
+        border: none;
+        border-radius: 15px;
+        padding: 16px;
+        font-size: 17px;
+        font-weight: bold;
+        background: #ffffff;
+        color: #111827;
+        cursor: pointer;
+        margin-top: 5px;
+    }
+
+    button:active {
+        transform: scale(.98);
+    }
+
+    .status {
+        text-align: center;
+        color: #9ca8c7;
+        font-size: 12px;
+        margin-top: 15px;
+    }
+
+    .warning {
+        text-align: center;
+        color: #9ca8c7;
+        font-size: 11px;
+        line-height: 1.5;
+        margin-top: 15px;
+    }
+</style>
+</head>
+
+<body>
+
+<div class="app">
+
+    <div class="logo">🚀 BALOCHFX</div>
+    <div class="subtitle">Candle / Price Analyzer</div>
+
+    <div class="pair">BTC / USD</div>
+    <div class="price" id="price">$--</div>
+
+    <div class="card">
+        <div class="label">CURRENT ANALYSIS</div>
+
+        <div id="signal" class="signal neutral">
+            🟡 NEUTRAL
+        </div>
+
+        <div id="strength" class="strength">
+            Strength: --
+        </div>
+
+        <div class="meter">
+            <div id="meterFill" class="meterFill"></div>
+        </div>
+    </div>
+
+    <div class="card">
+
+        <div class="row">
+            <span>Momentum</span>
+            <span id="momentum" class="value">--</span>
+        </div>
+
+        <div class="row">
+            <span>Short Trend</span>
+            <span id="trend" class="value">--</span>
+        </div>
+
+        <div class="row">
+            <span>Price Change</span>
+            <span id="change" class="value">--</span>
+        </div>
+
+        <div class="row">
+            <span>Samples</span>
+            <span id="samples" class="value">0</span>
+        </div>
+
+    </div>
+
+    <div class="card">
+        <div class="label">WHY THIS SIGNAL?</div>
+
+        <ul id="reasons">
+            <li>Waiting for market data...</li>
+        </ul>
+    </div>
+
+    <button onclick="analyze()">GET SIGNAL</button>
+
+    <div id="status" class="status">
+        Ready
+    </div>
+
+    <div class="warning">
+        Educational signal only. Market direction is uncertain.
+        This analyzer does not guarantee future candle direction.
+    </div>
+
+</div>
+
+<script>
+
+const API =
+    "https://api.coinbase.com/v2/prices/BTC-USD/spot";
+
+const TOTAL_READINGS = 10;
+const DELAY = 2000;
+
+let prices = [];
+
+
+/* =========================
+   GET LIVE BTC PRICE
+========================= */
+
+async function getPrice() {
+
+    const response = await fetch(API, {
+        cache: "no-store"
+    });
+
+    if (!response.ok) {
+        throw new Error("Price API error");
+    }
+
+    const data = await response.json();
+
+    if (
+        !data ||
+        !data.data ||
+        !data.data.amount
+    ) {
+        throw new Error("Invalid price data");
+    }
+
+    return parseFloat(data.data.amount);
+}
+
+
+/* =========================
+   WAIT
+========================= */
+
+function sleep(ms) {
+    return new Promise(resolve =>
+        setTimeout(resolve, ms)
+    );
+}
+
+
+/* =========================
+   FORMAT PRICE
+========================= */
+
+function formatPrice(price) {
+
+    return "$" + price.toLocaleString(
+        "en-US",
+        {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
+        }
+    );
+}
+
+
+/* =========================
+   ANALYZE PRICES
+========================= */
+
+function calculateSignal(data) {
+
+    if (data.length < 3) {
+
+        return {
+            signal: "NEUTRAL",
+            strength: "WEAK",
+            score: 0,
+            reasons: [
+                "Not enough price samples yet."
+            ],
+            momentum: "WAITING",
+            trend: "WAITING",
+            change: 0
+        };
+    }
+
+
+    const first = data[0];
+
+    const last =
+        data[data.length - 1];
+
+
+    const change =
+        ((last - first) / first) * 100;
+
+
+    /*
+       Momentum:
+       Compare recent movement
+       with earlier movement.
+    */
+
+    const mid =
+        Math.floor(data.length / 2);
+
+    const oldPrice =
+        data[mid];
+
+    const recentChange =
+        ((last - oldPrice) / oldPrice) * 100;
+
+
+    let score = 0;
+
+    const reasons = [];
+
+
+    /* PRICE DIRECTION */
+
+    if (change > 0.015) {
+
+        score += 2;
+
+        reasons.push(
+            "Price is moving upward."
+        );
+
+    } else if (change < -0.015) {
+
+        score -= 2;
+
+        reasons.push(
+            "Price is moving downward."
+        );
+
+    } else {
+
+        reasons.push(
+            "Overall price movement is small."
+        );
+    }
+
+
+    /* MOMENTUM */
+
+    if (recentChange > 0.01) {
+
+        score += 2;
+
+        reasons.push(
+            "Recent momentum is bullish."
+        );
+
+    } else if (recentChange < -0.01) {
+
+        score -= 2;
+
+        reasons.push(
+            "Recent momentum is bearish."
+        );
+
+    } else {
+
+        reasons.push(
+            "Momentum is relatively weak."
+        );
+    }
+
+
+    /* SEQUENTIAL MOVEMENT */
+
+    let rising = 0;
+    let falling = 0;
+
+    for (
+        let i = 1;
+        i < data.length;
+        i++
+    ) {
+
+        if (data[i] > data[i - 1]) {
+            rising++;
+        }
+
+        if (data[i] < data[i - 1]) {
+            falling++;
+        }
+    }
+
+
+    if (rising > falling) {
+
+        score += 1;
+
+        reasons.push(
+            "More recent samples moved upward."
+        );
+
+    } else if (falling > rising) {
+
+        score -= 1;
+
+        reasons.push(
+            "More recent samples moved downward."
+        );
+
+    } else {
+
+        reasons.push(
+            "Up/down movements are mixed."
+        );
+    }
+
+
+    /* TREND */
+
+    let trend = "SIDEWAYS";
+
+    if (score >= 3) {
+
+        trend = "BULLISH";
+
+    } else if (score <= -3) {
+
+        trend = "BEARISH";
+    }
+
+
+    /* FINAL SIGNAL */
+
+    let signal = "NEUTRAL";
+
+    if (score >= 3) {
+
+        signal = "UP";
+
+    } else if (score <= -3) {
+
+        signal = "DOWN";
+    }
+
+
+    /* STRENGTH */
+
+    let strength = "WEAK";
+
+    const absoluteScore =
+        Math.abs(score);
+
+    if (absoluteScore >= 5) {
+
+        strength = "STRONG";
+
+    } else if (absoluteScore >= 3) {
+
+        strength = "MEDIUM";
+    }
+
+
+    let momentum = "NEUTRAL";
+
+    if (recentChange > 0.01) {
+
+        momentum = "BULLISH";
+
+    } else if (recentChange < -0.01) {
+
+        momentum = "BEARISH";
+    }
+
+
+    return {
+        signal,
+        strength,
+        score,
+        reasons,
+        momentum,
+        trend,
+        change
+    };
+}
+
+
+/* =========================
+   UPDATE UI
+========================= */
+
+function updateUI(result) {
+
+    const signal =
+        document.getElementById("signal");
+
+    signal.className = "signal";
+
+
+    if (result.signal === "UP") {
+
+        signal.innerHTML =
+            "🟢 UP";
+
+        signal.classList.add("up");
+
+    } else if (result.signal === "DOWN") {
+
+        signal.innerHTML =
+            "🔴 DOWN";
+
+        signal.classList.add("down");
+
+    } else {
+
+        signal.innerHTML =
+            "🟡 NEUTRAL";
+
+        signal.classList.add("neutral");
+    }
+
+
+    document.getElementById(
+        "strength"
+    ).innerText =
+        "Strength: " + result.strength;
+
+
+    document.getElementById(
+        "momentum"
+    ).innerText =
+        result.momentum;
+
+
+    document.getElementById(
+        "trend"
+    ).innerText =
+        result.trend;
+
+
+    document.getElementById(
+        "change"
+    ).innerText =
+        (result.change >= 0 ? "+" : "") +
+        result.change.toFixed(4) +
+        "%";
+
+
+    document.getElementById(
+        "samples"
+    ).innerText =
+        prices.length;
+
+
+    let percentage = 20;
+
+    if (result.strength === "MEDIUM") {
+        percentage = 60;
+    }
+
+    if (result.strength === "STRONG") {
+        percentage = 90;
+    }
+
+    document.getElementById(
+        "meterFill"
+    ).style.width =
+        percentage + "%";
+
+
+    const reasons =
+        document.getElementById(
+            "reasons"
+        );
+
+    reasons.innerHTML = "";
+
+    result.reasons.forEach(
+        reason => {
+
+            const li =
+                document.createElement("li");
+
+            li.innerText = reason;
+
+            reasons.appendChild(li);
+        }
+    );
+}
+
+
+/* =========================
+   MAIN ANALYZER
+========================= */
+
+async function analyze() {
+
+    const status =
+        document.getElementById("status");
+
+    status.innerText =
+        "Collecting live price data...";
+
+    prices = [];
+
+
+    try {
+
+        for (
+            let i = 0;
+            i < TOTAL_READINGS;
+            i++
+        ) {
+
+            const price =
+                await getPrice();
+
+            prices.push(price);
+
+
+            document.getElementById(
+                "price"
+            ).innerText =
+                formatPrice(price);
+
+
+            document.getElementById(
+                "samples"
+            ).innerText =
+                prices.length;
+
+
+            status.innerText =
+                "Reading " +
+                (i + 1) +
+                " / " +
+                TOTAL_READINGS;
+
+
+            if (
+                i <
+                TOTAL_READINGS - 1
+            ) {
+
+                await sleep(DELAY);
+            }
+        }
+
+
+        const result =
+            calculateSignal(prices);
+
+
+        updateUI(result);
+
+
+        status.innerText =
+            "Analysis complete";
+
+
+    } catch (error) {
+
+        console.error(error);
+
+        status.innerText =
+            "Unable to get market data";
+
+
+        document.getElementById(
+            "reasons"
+        ).innerHTML =
+            "<li>Price data could not be loaded.</li>" +
+            "<li>Check your internet connection.</li>";
+    }
+}
+
+
+/* =========================
+   INITIAL PRICE
+========================= */
+
+async function initialPrice() {
+
+    try {
+
+        const price =
+            await getPrice();
+
+        document.getElementById(
+            "price"
+        ).innerText =
+            formatPrice(price);
+
+    } catch (error) {
+
+        console.log(
+            "Initial price unavailable"
+        );
+    }
+}
+
+
+initialPrice();
+
+</script>
+
+</body>
+</html>
