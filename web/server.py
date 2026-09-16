@@ -1,9 +1,10 @@
+import os
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from urllib.request import urlopen, Request
 import json
 import math
 
-PORT = 8080
+PORT = int(os.environ.get("PORT", 8080))
 
 BINANCE_API = (
     "https://api.binance.com/api/v3/klines"
