@@ -15,9 +15,10 @@ def add_cors_headers(response):
 
 
 LICENSE_SECRET = os.environ.get("LICENSE_SECRET", "")
+OWNER_SETUP_TOKEN = os.environ.get("OWNER_SETUP_TOKEN", "")
+OWNER_DEVICE_HASH = os.environ.get("OWNER_DEVICE_HASH", "")
 
-# Demo licenses.
-# Inhe baad mein server-side database se replace karenge.
+
 LICENSES = {
     "BFX-DEMO-2026": {
         "expires": "2026-12-31",
@@ -49,6 +50,43 @@ def health():
     })
 
 
+@app.post("/api/owner-hash")
+def owner_hash():
+    data = request.get_json(silent=True) or {}
+
+    setup_token = str(data.get("setup_token", "")).strip()
+    device_id = str(data.get("device_id", "")).strip()
+
+    if not OWNER_SETUP_TOKEN:
+        return jsonify({
+            "ok": False,
+            "error": "Owner setup is not configured"
+        }), 500
+
+    if setup_token != OWNER_SETUP_TOKEN:
+        return jsonify({
+            "ok": False,
+            "error": "Invalid owner setup token"
+        }), 401
+
+    if not device_id:
+        return jsonify({
+            "ok": False,
+            "error": "Device ID is required"
+        }), 400
+
+    if not LICENSE_SECRET:
+        return jsonify({
+            "ok": False,
+            "error": "Server secret is not configured"
+        }), 500
+
+    return jsonify({
+        "ok": True,
+        "device_hash": device_hash(device_id)
+    })
+
+
 @app.post("/api/activate")
 def activate():
     data = request.get_json(silent=True) or {}
@@ -67,6 +105,15 @@ def activate():
             "ok": False,
             "error": "Server secret is not configured"
         }), 500
+
+    device = device_hash(device_id)
+
+    if OWNER_DEVICE_HASH and device == OWNER_DEVICE_HASH:
+        return jsonify({
+            "ok": True,
+            "owner": True,
+            "message": "BALOCHFX owner device authorized"
+        })
 
     license_data = LICENSES.get(code)
 
@@ -92,8 +139,6 @@ def activate():
             "error": "License expired"
         }), 403
 
-    device = device_hash(device_id)
-
     if device not in license_data["devices"]:
         if len(license_data["devices"]) >= license_data["max_devices"]:
             return jsonify({
@@ -117,10 +162,30 @@ def verify():
     code = str(data.get("code", "")).strip().upper()
     device_id = str(data.get("device_id", "")).strip()
 
-    if not code or not device_id:
+    if not device_id:
         return jsonify({
             "ok": False,
-            "error": "License code and device ID are required"
+            "error": "Device ID is required"
+        }), 400
+
+    if not LICENSE_SECRET:
+        return jsonify({
+            "ok": False,
+            "error": "Server secret is not configured"
+        }), 500
+
+    device = device_hash(device_id)
+
+    if OWNER_DEVICE_HASH and device == OWNER_DEVICE_HASH:
+        return jsonify({
+            "ok": True,
+            "owner": True
+        })
+
+    if not code:
+        return jsonify({
+            "ok": False,
+            "error": "License code is required"
         }), 400
 
     license_data = LICENSES.get(code)
@@ -139,8 +204,6 @@ def verify():
             "ok": False,
             "error": "License expired"
         }), 403
-
-    device = device_hash(device_id)
 
     if device not in license_data["devices"]:
         return jsonify({
