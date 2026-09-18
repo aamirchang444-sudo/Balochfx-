@@ -213,7 +213,225 @@ button:active {
 </head>
 
 <body>
+<!-- BALOCHFX LICENSE GATE -->
+<div id="licenseGate" style="
+    position:fixed;
+    inset:0;
+    background:#ffffff;
+    z-index:999999;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding:20px;
+    box-sizing:border-box;
+">
+    <div style="
+        width:100%;
+        max-width:420px;
+        text-align:center;
+        font-family:Arial,sans-serif;
+    ">
+        <h1>🚀 BALOCHFX</h1>
 
+        <p style="font-size:18px;font-weight:bold;">
+            License Required
+        </p>
+
+        <p style="color:#666;">
+            Apni BALOCHFX License Key enter karein.
+        </p>
+
+        <input
+            id="licenseKey"
+            type="text"
+            placeholder="BFX-XXXXXX-XXXXXX"
+            autocomplete="off"
+            style="
+                width:100%;
+                padding:14px;
+                box-sizing:border-box;
+                font-size:16px;
+                text-align:center;
+                border:1px solid #ccc;
+                border-radius:8px;
+            "
+        >
+
+        <button
+            id="activateLicenseBtn"
+            onclick="activateBFXLicense()"
+            style="
+                width:100%;
+                padding:14px;
+                margin-top:12px;
+                font-size:16px;
+                font-weight:bold;
+                border:0;
+                border-radius:8px;
+                cursor:pointer;
+            "
+        >
+            ACTIVATE LICENSE
+        </button>
+
+        <div
+            id="licenseStatus"
+            style="
+                margin-top:15px;
+                font-size:14px;
+                word-break:break-word;
+            "
+        ></div>
+    </div>
+</div>
+
+<script>
+const BFX_LICENSE_SERVER =
+    "https://balochfx-license.onrender.com";
+
+function getBFXDeviceId() {
+
+    let id = localStorage.getItem("bfx_device_id");
+
+    if (!id) {
+        if (window.crypto && crypto.randomUUID) {
+            id = crypto.randomUUID();
+        } else {
+            id = "bfx-" + Date.now() + "-" +
+                 Math.random().toString(36).slice(2);
+        }
+
+        localStorage.setItem("bfx_device_id", id);
+    }
+
+    return id;
+}
+
+async function checkBFXLicense() {
+
+    const savedKey =
+        localStorage.getItem("bfx_license_key");
+
+    const status =
+        document.getElementById("licenseStatus");
+
+    if (!savedKey) {
+        return;
+    }
+
+    try {
+
+        const response = await fetch(
+            BFX_LICENSE_SERVER + "/api/verify",
+            {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                    code: savedKey,
+                    device_id: getBFXDeviceId()
+                })
+            }
+        );
+
+        const data = await response.json();
+
+        if (response.ok && data.ok) {
+            document.getElementById("licenseGate")
+                .style.display = "none";
+        } else {
+            localStorage.removeItem("bfx_license_key");
+
+            status.textContent =
+                data.error || "License verify failed.";
+        }
+
+    } catch (error) {
+
+        status.textContent =
+            "License server connection failed.";
+    }
+}
+
+async function activateBFXLicense() {
+
+    const input =
+        document.getElementById("licenseKey");
+
+    const status =
+        document.getElementById("licenseStatus");
+
+    const button =
+        document.getElementById("activateLicenseBtn");
+
+    const key =
+        input.value.trim().toUpperCase();
+
+    if (!key) {
+        status.textContent =
+            "License Key enter karein.";
+        return;
+    }
+
+    button.disabled = true;
+
+    status.textContent =
+        "License activate ho raha hai...";
+
+    try {
+
+        const response = await fetch(
+            BFX_LICENSE_SERVER + "/api/activate",
+            {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                    code: key,
+                    device_id: getBFXDeviceId()
+                })
+            }
+        );
+
+        const data = await response.json();
+
+        if (response.ok && data.ok) {
+
+            localStorage.setItem(
+                "bfx_license_key",
+                key
+            );
+
+            status.textContent =
+                "✅ BALOCHFX activated.";
+
+            setTimeout(function() {
+                document.getElementById("licenseGate")
+                    .style.display = "none";
+            }, 500);
+
+        } else {
+
+            status.textContent =
+                data.error || "License activation failed.";
+        }
+
+    } catch (error) {
+
+        status.textContent =
+            "License server connection failed.";
+    }
+
+    button.disabled = false;
+}
+
+window.addEventListener(
+    "DOMContentLoaded",
+    checkBFXLicense
+);
+</script>
 <div class="container">
 
     <div class="header">
@@ -323,6 +541,16 @@ function getBfxDeviceId() {
     }
 
     return id;
+}
+
+
+function showBfxDeviceId() {
+    const id = getBfxDeviceId();
+    const display = document.getElementById("deviceIdDisplay");
+
+    if (display) {
+        display.textContent = "Device ID: " + id;
+    }
 }
 
 function setLicenseStatus(message) {
@@ -1183,7 +1411,21 @@ setInterval(() => {
             ACTIVATE
         </button>
 
-        <div id="licenseStatus">License required</div>
+        
+<button
+    id="showDeviceIdBtn"
+    onclick="showBfxDeviceId()"
+    style="width:100%;margin-top:10px;padding:12px;border:0;border-radius:10px;font-weight:bold;cursor:pointer;"
+>
+    SHOW DEVICE ID
+</button>
+
+<div
+    id="deviceIdDisplay"
+    style="margin-top:10px;word-break:break-all;font-size:12px;opacity:.8;"
+></div>
+
+<div id="licenseStatus">License required</div>
     </div>
 </div>
 
